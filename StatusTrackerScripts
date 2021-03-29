@@ -1,0 +1,102 @@
+// Code below meant to function with Status Tracker spreadsheet, a tool for teams to keep up to date on weekly production rates in a fluid dashboard-like interface.
+/** @OnlyCurrentDoc */
+
+// Macro used to generate a new weeks status tracker tab via duplication of the current one, and clear any week-dependent data
+function NewWeek() {
+  //Grab the data from the current tab
+  var spreadsheet = SpreadsheetApp.getActive();
+  var oldTabLastDate = spreadsheet.getRange('E1').getValue().getTime();
+  
+  //Determine the new start and end date by advancing the old date by 1 day
+  var newStartDate = new Date();
+  newStartDate.setTime(oldTabLastDate+(24*60*60*1000));
+  var newEndDate = new Date();
+  newEndDate.setTime((newStartDate.getTime()+(6*(24*60*60*1000))));
+  
+  //Format the dates for use in the title
+  var startDate = Utilities.formatDate(newStartDate, "GMT+1", "M/d");
+  var endDate = Utilities.formatDate(newEndDate, "GMT+1", "M/d");
+  var tabName = "Annotator Status Tracker " + startDate + "-" + endDate;
+  
+  //Try to access the sheet if it'a already there
+  var newSheet = spreadsheet.getSheetByName(tabName);
+  
+  //If it's there, exit the macro and deliver failed message.
+  if (newSheet != null) {
+    SpreadsheetApp.getUi().alert("Sheet already made, exiting macro.");
+    return;
+  }
+  //Otherwise, run the duplicate tab code
+  else {
+    //Duplicate the tab
+    spreadsheet.duplicateActiveSheet();
+    
+    //Set the start date and tab name
+    var startDateCell = spreadsheet.getRange('B1');
+    startDateCell.setValue(newStartDate);
+    spreadsheet.getActiveSheet().setName(tabName);
+    
+    //Find the number of team members, in bottom of column A
+    var values = spreadsheet.getRange('A2:A').getValues();
+    var offsetAmount = -1;
+    for(var i=0, iLen=values.length; i<iLen; i++) {
+      if(values[i][0] == '# Rows per Day') {
+        offsetAmount = values[i+1][0];
+      }
+    }
+    
+    //Initialize the ranges to update
+    //var teamComments = [];
+    var areasToClear = [];
+    var firstRow = 5;
+    
+    //Grab each Days range, and fix Team Comments while we're iterating
+
+     // Copy and paste the entire default sheets first 4 columns to fill in default working schedule, overriding what is there
+       //SpreadsheetApp.getUi().alert(tabName);
+
+      var defaultHoursSheet = spreadsheet.getSheetByName('Annotator Default General Hours');
+      var rangeToCopy = defaultHoursSheet.getRange('A3:D' + (7*offsetAmount + 6));
+      rangeToCopy.copyTo(spreadsheet.getRange("A3"));
+
+    //Clear each days content, fix dates
+    for (var i=0; i<7;i++){
+      firstRow = 5 + i*offsetAmount;
+      finalRow = firstRow + offsetAmount-4;
+      spreadsheet.getRange('E'+firstRow+':H'+(finalRow- 1)).clear({contentsOnly: true, skipFilteredRows: true});
+      spreadsheet.getRange('E' + (firstRow - 2)).clear({contentsOnly: true, skipFilteredRows: true});
+      var daysDate = spreadsheet.getRange('A'+(3+(i*offsetAmount)));
+      daysDate.setFormula("=$B$1+" + i);
+      daysDate.setNumberFormat("dddd, mmmm d");
+    }
+    /*for(var area in areasToClear){
+      areasToClear[area].offset(0,0,(offsetAmount-4),4).clear({contentsOnly: true, skipFilteredRows: true});
+      areasToClear[area].offset(-2,0,1,1).clear({contentsOnly: true, skipFilteredRows: true});
+    }*/
+  }
+  
+  //Deliver the success message.
+  SpreadsheetApp.getUi().alert("Tab: '"+ tabName + "' created successfully.");
+}
+
+function SaveTabToPastTargets() {
+  try{
+    var spreadsheet = SpreadsheetApp.getActive();
+    var currentSS = spreadsheet.getActiveSheet();
+    //var currentName = spreadsheet.getSheetName();
+    var currentLastRow = currentSS.getLastRow();
+    
+    var pastTargetsSS = spreadsheet.getSheetByName('Past Targets');
+    var pastTargetsLastRow = pastTargetsSS.getLastRow() + 3;
+    
+    currentSS.getRange('A1:P'+currentLastRow).copyTo(pastTargetsSS.getRange('A'+pastTargetsLastRow), SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
+    currentSS.getRange('A1:P'+currentLastRow).copyTo(pastTargetsSS.getRange('A'+pastTargetsLastRow), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    var newLastRow = pastTargetsSS.getLastRow()+1;
+    pastTargetsSS.getRange(newLastRow+':'+(newLastRow+1)).setBackground('#000000');
+    currentSS.hideSheet();
+    SpreadsheetApp.getUi().alert('Tab transferred to Past Targets and hidden.');
+  }
+  catch (err) {
+    SpreadsheetApp.getUi().alert('Error: ' + err);
+  }
+};
