@@ -1,0 +1,31 @@
+// Scripts used in conjunction with a Feedback Review spreadhseet, containing dashboards, raw data, and data imported from other sheets/polls.
+
+// Updates the poll response options for a Feedback Poll based on the most recent list of names for that poll in our spreadsheet
+function updateFormNames(){
+  // calls the form and connects to the drop-down item
+  var form = FormApp.openById("1RL9voEPKbSxKzisSRESJDXOK5_cyuxmGIOeSo9Dj4mY");
+  var formNewHireNamesList = form.getItemById("909294836").asListItem();
+
+// Identifies the sheet where the data resides needed to populate the drop-down
+  var ss = SpreadsheetApp.getActive();
+  var adminSheet = ss.getSheetByName("Admin");  
+  var namedRanges = adminSheet.getNamedRanges();
+  var newHireNames = [];
+  
+  // Uses the variable-sized named range to collec the names we're looking for
+  for (var namedRange of namedRanges) {
+    if(namedRange.getName()=="NewHireNames"){
+      newHireNames = namedRange.getRange().getValues();
+    }
+  }
+  
+  var newHireNamesFormatted = [];
+  
+  // Formats the list of names
+  for (var newHire of newHireNames) {
+    if(newHire!=""){
+      newHireNamesFormatted.push(newHire);
+    }
+  }
+  // populate the drop-down with the array data
+  formNewHireNamesList.setChoiceValues(newHireNamesFormatted);
