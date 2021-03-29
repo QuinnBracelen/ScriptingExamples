@@ -1,0 +1,57 @@
+// Generates individual read-only Confidential Feedback Reports (CFR) for each annotator in CFRNames (viewable by AdminEmails) based on our Feedback Review sheet.
+function GenerateConfidentialFeedbackReports() {
+
+  // Grab the Feedback Review sheet and skeleton file for CRF's
+  var feedbackReviewSpreadsheet = SpreadsheetApp.getActive();
+  var skeletonSpreadsheet = SpreadsheetApp.openById("ID_GOES_HERE")
+  
+  var annotatorList = feedbackReviewSpreadsheet.getRangeByName("CFRAnnotators");
+
+  // Ask for confirmation before generation
+  var ui = SpreadsheetApp.getUi();
+ 
+
+  var responseText = 'Generate CFR Reports? Annotators: \n' + annotatorList.getValues()
+    .map(function(row) {
+      return [row[2]];
+    });;
+  var response = ui.alert('CFR Reports',responseText, ui.ButtonSet.YES_NO);
+
+  // Process the user's response.
+  if (response == ui.Button.YES) {
+      // Initialize the new set of URL's and name/emails
+      var newAnnotatorList = [];
+      
+      // Iterate through all annotators in the list, and generate a new list that includes the new URL's
+      for (var annotator of annotatorList.getValues()) {
+        // Set the title of the CFR to include the annotators name, and store the url of the sheet
+        var title = ("Confidential Feedback Report - " + annotator[2]);
+        var ssNew = SpreadsheetApp.create(title);
+        newAnnotatorList.push([ssNew.getUrl(), annotator[1], annotator[2]]);
+
+        // Grab the skeleton file, copy it to the annotators sheet, then delete the initial empty sheet
+        var sourceSheet = skeletonSpreadsheet.getSheets()[0];
+        sourceSheet.copyTo(ssNew);
+        ssNew.deleteSheet(ssNew.getSheetByName("Sheet1"));
+
+        // Grab the tab from the skeleton sheet and set the name of the tab and name of the Annotator.
+        var resultsSheet = ssNew.getSheetByName("Copy of CFRResults");
+        resultsSheet.setName("CFR Results");
+        resultsSheet.getRange("B1").setValue(annotator[2]);
+
+        // Grab the annotator and admin emails, then add them as viewers -> only the person who runs the script will have edit access, and they will also get a double-email.
+        var annotatorEmail = annotator[1].toString();
+        var adminEmails = feedbackReviewSpreadsheet.getRangeByName("AdminEmails").getValues().filter(String);
+        var id = ssNew.getId();
+
+        DriveApp.getFileById(id).addViewers(adminEmails);   
+        DriveApp.getFileById(id).addViewer(annotatorEmail);
+      }
+      // Copy the sheet URL's into the TrainingStageTragger.
+      annotatorList.setValues(newAnnotatorList);
+  } 
+  else {
+    return
+  }
+
+};
